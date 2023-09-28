@@ -97,7 +97,7 @@ For Dictionaries, it will use the key property of `KeyValuePair` and ignore the 
 See `NumberStringComparerTests.NumberStringComparerObjectComparison_Tests()` for more complex object comparison examples.
 
 ### .NET Version
-This project uses .NET 7.0 (Core) but could be compiled against .NET Framework with only a few minor changes.
+This project uses .NET 7.0 (Core) for the main branch but there is also a [.NET Framework-compatible branch](https://github.com/SleekPanther/NumberStringComparer/tree/net-framework) made with only a few minor changes.
 - Replacing `readonly` properties with private fields and properties with private do nothing setters.
 - Replace uses of the Range operator with the `SubStringSafe` extension methods.
 - Explicitly specify the object type on the right hand of equals replacing `new()`
