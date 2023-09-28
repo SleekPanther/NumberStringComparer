@@ -1,5 +1,5 @@
-﻿using StringExtensions;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
+using System.Collections.ObjectModel;
 
 namespace NumberStringComparer;
 /// <summary>
@@ -152,10 +152,17 @@ public sealed class NumberStringComparer<T> : IComparer<T>
 
         public static IReadOnlyList<string>? GetParts(string text) {
             if (text == null) return null;
-            if (text.Length == 0) return new List<string>();
-            if (text.Length == 1) return new List<string>() { text[0].ToString() };
-            if (text.Contains(',')) return text.Split(',', StringSplitOptions.RemoveEmptyEntries);	//must check this before double.TryParse because that ignores commas
-            if (double.TryParse(text, out double _ ) 
+            if (text.Length == 0) return Array.Empty<string>().AsReadOnly();
+            if (text.Length == 1) return new List<string>() { text[0].ToString() }.AsReadOnly();
+            if (text.Contains(',')) {   //must check this before double.TryParse because that ignores commas
+                return text
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim())
+                    .Where(s => !string.IsNullOrEmpty(s))
+                    .ToList()
+                    .AsReadOnly();
+            }
+			if (double.TryParse(text, out double _ ) 
                 || text.All(ch => !char.IsDigit(ch))) return new List<string>() { text };
 
             int left = 0;
@@ -169,19 +176,19 @@ public sealed class NumberStringComparer<T> : IComparer<T>
                     if (i > 0 && (!wasNumber || i == text.Length - 1)) {
                         if (i == text.Length - 1) {
                             if (!wasNumber) {
-                                parts.Add(text.SubstringSafe(left, i - left));
+                                parts.Add(text[left..i]);
                                 extra = text[i];
                             }
                             else {
-                                parts.Add(text.SubstringSafe(left, i - left +1));
+                                parts.Add(text[left..(i+1)]);
                             }
                             breakOuter = true;
                             break;
                         }
                         else {
-                            parts.Add(text.SubstringSafe(left, i - left));
-                        }
-                        left = i;
+							parts.Add(text[left..i]);
+						}
+						left = i;
                     }
                     wasNumber = true;
                     if(i < text.Length -1) {
@@ -196,19 +203,19 @@ public sealed class NumberStringComparer<T> : IComparer<T>
                     if (i > 0 && (wasNumber || i == text.Length - 1)) {
                         if (i == text.Length - 1) {
                             if (wasNumber) {
-                                parts.Add(text.SubstringSafe(left, i - left));
-                                extra = text[i];
+                                parts.Add(text[left..(i +0-1)]);
+								extra = text[i];
                             }
                             else {
-                                parts.Add(text.SubstringSafe(left, i - left +1));
-                            }
-                            breakOuter = true;
+                                parts.Add(text[left..(i +1)]);
+							}
+							breakOuter = true;
                             break;
                         }
                         else {
-                            parts.Add(text.SubstringSafe(left, i - left));
-                        }
-                        left = i;
+                            parts.Add(text[left..i]);
+						}
+						left = i;
                     }
                     wasNumber = false;
                     if(i < text.Length -1) {
@@ -231,9 +238,8 @@ public sealed class NumberStringComparer<T> : IComparer<T>
         }
 
         public override readonly string ToString() {
-            string result = number == null ? "null" : number.ToString()!;
-            result += text == null ? " (null)" : " (" + text + ")";
-            return result;
+            return (number?.ToString() ?? "null")
+				+ (text == null ? " (null)" : " (" + text + ")");
         }
     }
 }
