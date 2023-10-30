@@ -30,7 +30,7 @@ public sealed class NumberStringComparer<T> : IComparer<T>
 		if (!IsComplexType(type)) throw new InvalidOperationException($"{type.Name} is not a complex type, {nameof(GetObjectComparer)} should only be called with complex types");
 		comparers.TryGetValue(propertyName, out var comparer);
 		if(comparer == null) {
-			var property = type.GetProperties().FirstOrDefault(pi => pi.Name == propertyName);
+			var property = type.GetProperty(propertyName);
 			if (property == null) throw new InvalidOperationException($"{type.Name} does not have property {propertyName}");
 			if (!IsValidType(property.PropertyType)) ThrowUnsupportedTypeException(propertyName, property.GetType());
 			comparer = new NumberStringComparer<T>(propertyName);
