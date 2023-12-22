@@ -18,7 +18,8 @@ namespace NumberStringComparer {
 		private string propertyName;   //optional, used for Object comparison
 		private NumberStringComparer() { }
 		private NumberStringComparer(string propertyName) {
-			this.propertyName = propertyName; }
+			this.propertyName = propertyName;
+		}
 		private static ConcurrentDictionary<string, NumberStringComparer<T>> comparers = new ConcurrentDictionary<string, NumberStringComparer<T>>();
 
 		public static void ThrowUnsupportedTypeException(string propertyName, Type type) => throw new InvalidOperationException($"{propertyName} is {(type == null ? " null " : type.Name)}");
