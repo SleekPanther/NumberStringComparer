@@ -1,4 +1,4 @@
-﻿namespace NumberStringComparerTests;
+﻿namespace NumberStringComparer.Tests;
 public class NumberStringComparerTests {
 	private static readonly IReadOnlyList<string> list = new List<string>().AsReadOnly();
 
