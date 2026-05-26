@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NumberStringComparer", "Num
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NumberStringComparer.Tests", "NumberStringComparer.Tests\NumberStringComparer.Tests.csproj", "{5D7E3277-3B95-4C5E-931D-DCAC528366CD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NumberStringComparer.Benchmarks", "NumberStringComparer.Benchmarks\NumberStringComparer.Benchmarks.csproj", "{F8AF1650-DB80-4638-AF2D-EC8B2AC3EDF9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{5D7E3277-3B95-4C5E-931D-DCAC528366CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5D7E3277-3B95-4C5E-931D-DCAC528366CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5D7E3277-3B95-4C5E-931D-DCAC528366CD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F8AF1650-DB80-4638-AF2D-EC8B2AC3EDF9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F8AF1650-DB80-4638-AF2D-EC8B2AC3EDF9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F8AF1650-DB80-4638-AF2D-EC8B2AC3EDF9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F8AF1650-DB80-4638-AF2D-EC8B2AC3EDF9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
