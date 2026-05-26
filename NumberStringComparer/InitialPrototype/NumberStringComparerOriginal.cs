@@ -140,8 +140,9 @@ public sealed class NumberStringComparerOriginal<T> : IComparer<T>
 				}
 			}
 
-			if (result == 0 && i < bParts!.Count) {    //b still has more, return -1 to indicate it should appear after the first (shorter) item
-				result = -1;
+			if (result == 0) {
+				if (i < aParts!.Count) return 1;  // a has more parts
+				if (i < bParts!.Count) return -1; // b has more parts
 			}
 			return result;
 		}

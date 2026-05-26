@@ -12,7 +12,7 @@ BenchmarkRunner.Run<NumberStringComparerBenchmarks>();
 [MemoryDiagnoser]
 //[Orderer(SummaryOrderPolicy.FastestToSlowest)]
 //[RankColumn]
-[MaxIterationCount(50)]
+[MaxIterationCount(16)]
 [Config(typeof(Config))]
 public class NumberStringComparerBenchmarks
 {
@@ -76,9 +76,9 @@ public class NumberStringComparerBenchmarks
 			_commaSeparated.Add($"{i}, a, b, c, d, e, f");
 		}
 		//todo adding this also breaks things with the exception seen for mixedLong
-		//// Shuffle to make it unsorted
-		//var rng = new Random(42); // Fixed seed for reproducibility
-		//_commaSeparated = _commaSeparated.OrderBy(x => rng.Next()).ToList();
+		// Shuffle to make it unsorted
+		var rng = new Random(42); // Fixed seed for reproducibility
+		_commaSeparated = _commaSeparated.OrderBy(x => rng.Next()).ToList();
 
 		// Dictionary scenario (from tests)
 		_dictionary = new List<KeyValuePair<string, string>>();
@@ -147,19 +147,17 @@ public class NumberStringComparerBenchmarks
 	// Mixed long list (11,000+ items) - realistic large dataset
 	//TODO This benchmark seems to have exposed an existing bug so can't really optimize.
 	//System.ArgumentException: Unable to sort because the IComparer.Compare() method returns inconsistent results. Either a value does not compare equal to itself, or one value repeatedly compared to another value yields different results.
-	//[Benchmark]
-	//public void MixedLong_Original()
-	//{
-	//	var list = new List<string>(_mixedLong);
-	//	list.Sort(NumberStringComparerOriginal<string>.GetComparer());
-	//}
+	[Benchmark]
+	public void MixedLong_Original() {
+		var list = new List<string>(_mixedLong);
+		list.Sort(NumberStringComparerOriginal<string>.GetComparer());
+	}
 
-	//[Benchmark]
-	//public void MixedLong_Current()
-	//{
-	//	var list = new List<string>(_mixedLong);
-	//	list.Sort(NumberStringComparer<string>.GetComparer());
-	//}
+	[Benchmark]
+	public void MixedLong_Current() {
+		var list = new List<string>(_mixedLong);
+		list.Sort(NumberStringComparer<string>.GetComparer());
+	}
 
 
 	// Complex alphanumeric (8,000 items) - heavy parsing
@@ -185,7 +183,6 @@ public class NumberStringComparerBenchmarks
 		var list = new List<string>(_commaSeparated);
 		list.Sort(NumberStringComparer<string>.GetComparer());
 	}
-
 
 	private class Config : ManualConfig
 	{

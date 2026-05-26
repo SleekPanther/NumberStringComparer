@@ -54,17 +54,22 @@ public sealed class NumberStringComparer<T> : IComparer<T>
 
 	public int Compare(T? x, T? y) {
 		Type type = typeof(T);
-		if(IsKeyValuePair(type)) {
-			return NumberString<T>.Parse(((dynamic)x!).Key).CompareTo(NumberString<T>.Parse(((dynamic)y!).Key));
+		try {
+			if(IsKeyValuePair(type)) {
+				return NumberString<T>.Parse(((dynamic)x!).Key).CompareTo(NumberString<T>.Parse(((dynamic)y!).Key));
+			}
+			if (IsComplexType(type)) {
+				if (string.IsNullOrWhiteSpace(propertyName)) throw new InvalidOperationException($"{propertyName} is empty and must be specified for object comparison on complex types. Type = {type}");
+				return NumberString<T>.Parse(x!, propertyName).CompareTo(NumberString<T>.Parse(y!, propertyName));
+			}
+			return NumberString<T>.Parse(x?.ToString()).CompareTo(NumberString<T>.Parse(y?.ToString()));
 		}
-		if (IsComplexType(type)) {
-			if (string.IsNullOrWhiteSpace(propertyName)) throw new InvalidOperationException($"{propertyName} is empty and must be specified for object comparison on complex types. Type = {type}");
-			return NumberString<T>.Parse(x!, propertyName).CompareTo(NumberString<T>.Parse(y!, propertyName));
+		catch (Exception ex) {
+			throw new InvalidOperationException($"Compare failed for x='{x}', y='{y}'", ex);
 		}
-		return NumberString<T>.Parse(x?.ToString()).CompareTo(NumberString<T>.Parse(y?.ToString()));
 	}
 
-	public struct NumberString<U> : IComparable<NumberString<U>> 
+	public readonly struct NumberString<U> : IComparable<NumberString<U>> 
 	{
 		public readonly double? number;
 		public readonly string text;
@@ -121,128 +126,84 @@ public sealed class NumberStringComparer<T> : IComparer<T>
 		}
 
 		private static int CompareToPartial(NumberString<U> a, NumberString<U> b) {
-			var aParts = a.parts ?? GetParts(a.text);
-			var bParts = b.parts ?? GetParts(b.text);
+			try {
+				var aParts = a.parts ?? GetParts(a.text);
+				var bParts = b.parts ?? GetParts(b.text);
 
-			if (Enumerable.SequenceEqual(aParts!, bParts!)) {
-				return 0;
-			}
-
-			int result = 0;
-			int i = 0;
-			//compare each part until we find a difference or reach the end of the shorter list
-			for (; i < aParts!.Count && i < bParts!.Count && result == 0; i++) {
-				bool aIsNum = double.TryParse(aParts[i], out double num1);
-				bool bIsNum = double.TryParse(bParts[i], out double num2);
-				
-				if (aIsNum && bIsNum) {	//number vs number
-					result = num1.CompareTo(num2);
+				if (aParts == null || bParts == null) {
+					throw new InvalidOperationException($"GetParts returned null. a.text='{a.text}', b.text='{b.text}'");
 				}
-				else {	//number vs string OR string vs number OR string vs string - all use string comparison
-					result = aParts[i].CompareTo(bParts[i]);
-				}
-			}
 
-			if(result == 0 && i < bParts!.Count) {	//b still has more, return -1 to indicate it should appear after the first (shorter) item
-				result = -1;
+				if (Enumerable.SequenceEqual(aParts!, bParts!)) {
+					return 0;
+				}
+
+				int result = 0;
+				int i = 0;
+				//compare each part until we find a difference or reach the end of the shorter list
+				for (; i < aParts!.Count && i < bParts!.Count && result == 0; i++) {
+					bool aIsNum = double.TryParse(aParts[i], out double num1);
+					bool bIsNum = double.TryParse(bParts[i], out double num2);
+					
+					if (aIsNum && bIsNum) {	//number vs number
+						result = num1.CompareTo(num2);
+					}
+					else {	//number vs string OR string vs number OR string vs string - all use string comparison
+						result = aParts[i].CompareTo(bParts[i]);
+					}
+				}
+
+				if(result == 0) {
+					if (i < aParts!.Count) return 1;  // a has more parts
+					if (i < bParts!.Count) return -1; // b has more parts
+				}
+				return result;
 			}
-			return result;
+			catch (Exception ex) {
+				throw new InvalidOperationException($"CompareToPartial failed. a.text='{a.text}', b.text='{b.text}', a.number={a.number}, b.number={b.number}", ex);
+			}
 		}
 
 		public static IReadOnlyList<string>? GetParts(string text) {
-			if (text == null) return null;
-			if (text.Length == 0) return Array.Empty<string>();
-			if (text.Length == 1) return new[] { text[0].ToString() };
-			if (text.Contains(',')) {   //must check this before double.TryParse because that ignores commas
-				return text
-					.Split(',', StringSplitOptions.RemoveEmptyEntries)
-					.Select(s => s.Trim())
-					.Where(s => !string.IsNullOrEmpty(s))
-					.ToList();
-			}
+			try {
+				if (text == null) return null;
+				if (text.Length == 0) return Array.Empty<string>();
+				if (text.Length == 1) return new[] { text[0].ToString() };
+				if (text.Contains(',')) {   //must check this before double.TryParse because that ignores commas
+					var parts = new List<string>();
+					foreach (var part in text.Split(',', StringSplitOptions.RemoveEmptyEntries)) {
+						var trimmed = part.Trim();
+						if (trimmed.Length > 0) {
+							parts.Add(trimmed);
+						}
+					}
+					return parts;
+				}
+					
+				ReadOnlySpan<char> span = text.AsSpan();
+				if (double.TryParse(span, out double _) || text.All(ch => !char.IsDigit(ch))) {
+					return new List<string>() { text };
+				}
+
+				var result = new List<string>();
+				int start = 0;
+				bool wasDigit = char.IsDigit(text[0]);
 				
-			ReadOnlySpan<char> span = text.AsSpan();
-			if (double.TryParse(span, out double _) || text.All(ch => !char.IsDigit(ch))) {
-				return new List<string>() { text };
+				// Simple state machine: track when digit/non-digit state changes
+				for (int i = 1; i < text.Length; i++) {
+					bool isDigit = char.IsDigit(text[i]);
+					if (isDigit != wasDigit) {  // State changed
+						result.Add(text.Substring(start, i - start));
+						start = i;
+						wasDigit = isDigit;
+					}
+				}
+				result.Add(text.Substring(start));  // Add final part
+				return result;
 			}
-
-			int left = 0;
-			bool wasNumber = false;
-			char extra = default;
-			var parts = new List<string>();
-			bool breakOuter = false;
-			for (int i = 0; i < span.Length; i++) {
-				char ch = span[i];
-				//process consecutive digits
-				for(; char.IsDigit(ch); i++) {
-					if (i > 0 && (!wasNumber || i == span.Length - 1)) {
-						if (i == span.Length - 1) {
-							if (!wasNumber) {
-								parts.Add(span[left..i].ToString());
-								extra = span[i];
-							}
-							else {
-								parts.Add(span[left..(i+1)].ToString());
-							}
-							breakOuter = true;
-							break;
-						}
-						else {
-							parts.Add(span[left..i].ToString());
-						}
-						left = i;
-					}
-					wasNumber = true;
-					if(i < span.Length -1) {
-						ch = span[i+1];
-					}
-					else {
-						break;
-					}
-				}
-				if (breakOuter) {
-					break;
-				}
-
-				//process consecutive non-digits
-				for (; !char.IsDigit(ch); i++) {
-					if (i > 0 && (wasNumber || i == span.Length - 1)) {
-						if (i == span.Length - 1) {
-							if (wasNumber) {
-								parts.Add(span[left..(i-1)].ToString());
-								extra = span[i];
-							}
-							else {
-								parts.Add(span[left..(i+1)].ToString());
-							}
-							breakOuter = true;
-							break;
-						}
-						else {
-							parts.Add(span[left..i].ToString());
-						}
-						left = i;
-					}
-					wasNumber = false;
-					if(i < span.Length -1) {
-						ch = span[i+1];
-					}
-					else {
-						break;
-					}
-				}
-				if (breakOuter) {
-					break;
-				}
-				if (i > 0 && i < span.Length) {
-					i--;	//go back 1 character so the other loop can start from where the last one failed to parse
-				}
+			catch (Exception ex) {
+				throw new InvalidOperationException($"GetParts failed for text='{text}', length={text?.Length}", ex);
 			}
-
-			if (extra != default(char)) {
-				parts.Add(extra.ToString());
-			}
-			return parts;
 		}
 
 		public override readonly string ToString() {

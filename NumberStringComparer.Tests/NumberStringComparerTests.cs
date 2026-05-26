@@ -331,4 +331,48 @@ public class NumberStringComparerTests {
 			.ToArray();
 		Assert.Equal(expectedDateTimeCompoundSortObjects, dateTimeCompoundSortObjects);
 	}
+
+	[Fact]
+	public void CommaSeparatedBenchmarkData_Test() {
+		try {
+			// Reproduce exact benchmark data generation
+			var commaSeparated = new List<string>();
+			for (int i = 0; i < 2000; i++) {
+				commaSeparated.Add($"{i},{i + 1}");
+				commaSeparated.Add($"{i},{i + 1},{i + 2},{i + 3},{i + 4}");
+				commaSeparated.Add($"{i}, a, b, c, d, e, f");
+			}
+			// Shuffle with same seed as benchmark
+			var rng = new Random(42);
+			commaSeparated = commaSeparated.OrderBy(x => rng.Next()).ToList();
+
+			// Validate comparer consistency
+			var comparer = NumberStringComparer<string>.GetComparer();
+			for (int i = 0; i < Math.Min(100, commaSeparated.Count); i++) {
+				var item = commaSeparated[i];
+				var result1 = comparer.Compare(item, item);
+				Assert.Equal(0, result1); // Item must compare equal to itself
+
+				if (i + 1 < commaSeparated.Count) {
+					var item2 = commaSeparated[i + 1];
+					var result2a = comparer.Compare(item, item2);
+					var result2b = comparer.Compare(item, item2);
+					Assert.Equal(result2a, result2b); // Must be consistent
+				}
+			}
+
+			// Now try the actual sort
+			commaSeparated.Sort(comparer);
+
+			// Verify it's sorted
+			for (int i = 0; i < commaSeparated.Count - 1; i++) {
+				var result = comparer.Compare(commaSeparated[i], commaSeparated[i + 1]);
+				Assert.True(result <= 0, $"Not sorted at index {i}: '{commaSeparated[i]}' vs '{commaSeparated[i + 1]}', compare result={result}");
+			}
+		}
+		catch (Exception ex) {
+			//put breakpoint here to catch original hard to identify bug from Benchmarks
+			throw;
+		}
+	}
 }
