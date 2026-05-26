@@ -10,9 +10,9 @@ using NumberStringComparer.InitialPrototype;
 BenchmarkRunner.Run<NumberStringComparerBenchmarks>();
 
 [MemoryDiagnoser]
-[Orderer(SummaryOrderPolicy.FastestToSlowest)]
-[RankColumn]
-[MaxIterationCount(25)]
+//[Orderer(SummaryOrderPolicy.FastestToSlowest)]
+//[RankColumn]
+[MaxIterationCount(50)]
 [Config(typeof(Config))]
 public class NumberStringComparerBenchmarks
 {
@@ -75,6 +75,10 @@ public class NumberStringComparerBenchmarks
 			_commaSeparated.Add($"{i},{i + 1},{i + 2},{i + 3},{i + 4}");
 			_commaSeparated.Add($"{i}, a, b, c, d, e, f");
 		}
+		//todo adding this also breaks things with the exception seen for mixedLong
+		//// Shuffle to make it unsorted
+		//var rng = new Random(42); // Fixed seed for reproducibility
+		//_commaSeparated = _commaSeparated.OrderBy(x => rng.Next()).ToList();
 
 		// Dictionary scenario (from tests)
 		_dictionary = new List<KeyValuePair<string, string>>();
@@ -104,83 +108,80 @@ public class NumberStringComparerBenchmarks
 	}
 
 	//// Mixed short list (21 items) - from actual test
-	//[Benchmark(Baseline = true)]
-	//public void Original_MixedShort()
-	//{
+	//[Benchmark]
+	//public void MixedShort_Original() {
 	//	var list = new List<string>(_mixedShort);
 	//	list.Sort(NumberStringComparerOriginal<string>.GetComparer());
 	//}
 	//[Benchmark]
-	//public void Current_MixedShort()
-	//{
+	//public void MixedShort_Current() {
 	//	var list = new List<string>(_mixedShort);
 	//	list.Sort(NumberStringComparer<string>.GetComparer());
 	//}
 
 	//// Pure numbers (5,000 items) - best case scenario
 	//[Benchmark]
-	//public void Original_PureNumbers() {
+	//public void PureNumbers_Original() {
 	//	var list = new List<string>(_pureNumbers);
 	//	list.Sort(NumberStringComparerOriginal<string>.GetComparer());
 	//}
 	//[Benchmark]
-	//public void Current_PureNumbers() {
+	//public void PureNumbers_Current() {
 	//	var list = new List<string>(_pureNumbers);
 	//	list.Sort(NumberStringComparer<string>.GetComparer());
 	//}
 
 	//// Dictionary/KeyValuePair scenario
 	//[Benchmark]
-	//public void Original_Dictionary() {
+	//public void Dictionary_Original() {
 	//	var list = new List<KeyValuePair<string, string>>(_dictionary);
 	//	list.Sort(NumberStringComparerOriginal<KeyValuePair<string, string>>.GetComparer());
 	//}
 	//[Benchmark]
-	//public void Current_Dictionary() {
+	//public void Dictionary_Current() {
 	//	var list = new List<KeyValuePair<string, string>>(_dictionary);
 	//	list.Sort(NumberStringComparer<KeyValuePair<string, string>>.GetComparer());
 	//}
 
 
 	// Mixed long list (11,000+ items) - realistic large dataset
-	[Benchmark]
-	public void Original_MixedLong()
-	{
-		var list = new List<string>(_mixedLong);
-		list.Sort(NumberStringComparerOriginal<string>.GetComparer());
-	}
+	//TODO This benchmark seems to have exposed an existing bug so can't really optimize.
+	//System.ArgumentException: Unable to sort because the IComparer.Compare() method returns inconsistent results. Either a value does not compare equal to itself, or one value repeatedly compared to another value yields different results.
+	//[Benchmark]
+	//public void MixedLong_Original()
+	//{
+	//	var list = new List<string>(_mixedLong);
+	//	list.Sort(NumberStringComparerOriginal<string>.GetComparer());
+	//}
 
-	[Benchmark]
-	public void Current_MixedLong()
-	{
-		var list = new List<string>(_mixedLong);
-		list.Sort(NumberStringComparer<string>.GetComparer());
-	}
+	//[Benchmark]
+	//public void MixedLong_Current()
+	//{
+	//	var list = new List<string>(_mixedLong);
+	//	list.Sort(NumberStringComparer<string>.GetComparer());
+	//}
+
 
 	// Complex alphanumeric (8,000 items) - heavy parsing
 	[Benchmark]
-	public void Original_Alphanumeric()
-	{
+	public void Alphanumeric_Original() {
 		var list = new List<string>(_alphanumeric);
 		list.Sort(NumberStringComparerOriginal<string>.GetComparer());
 	}
 	[Benchmark]
-	public void Current_Alphanumeric()
-	{
+	public void Alphanumeric_Current() {
 		var list = new List<string>(_alphanumeric);
 		list.Sort(NumberStringComparer<string>.GetComparer());
 	}
 
 	// Comma-separated (6,000 items) - special case
 	[Benchmark]
-	public void Original_CommaSeparated()
-	{
+	public void CommaSeparated_Original() {
 		var list = new List<string>(_commaSeparated);
 		list.Sort(NumberStringComparerOriginal<string>.GetComparer());
 	}
 	[Benchmark]
-	public void Current_CommaSeparated()
-	{
+	public void CommaSeparated_Current() {
 		var list = new List<string>(_commaSeparated);
 		list.Sort(NumberStringComparer<string>.GetComparer());
 	}

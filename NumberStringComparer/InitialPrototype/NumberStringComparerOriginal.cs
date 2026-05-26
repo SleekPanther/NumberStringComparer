@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 
 namespace NumberStringComparer.InitialPrototype;
 /// <summary>
@@ -68,7 +68,7 @@ public sealed class NumberStringComparerOriginal<T> : IComparer<T>
 	{
 		public readonly double? number;
 		public readonly string text;
-		public IReadOnlyList<string>? parts;
+		private IReadOnlyList<string>? parts;
 		public NumberString(double? number, string text) {
 			this.number = number;
 			this.text = text;
@@ -115,32 +115,32 @@ public sealed class NumberStringComparerOriginal<T> : IComparer<T>
 		}
 
 		private static int CompareToPartial(NumberString<U> a, NumberString<U> b) {
-			a.parts = GetParts(a.text);
-			b.parts = GetParts(b.text);
+			var aParts = a.parts ?? GetParts(a.text);
+			var bParts = b.parts ?? GetParts(b.text);
 
-			if (Enumerable.SequenceEqual(a.parts!, b.parts!)) {
+			if (Enumerable.SequenceEqual(aParts!, bParts!)) {
 				return 0;
 			}
 
 			int result = 0;
 			int i = 0;
-			for (; i < a.parts!.Count && i < b.parts!.Count && result == 0; i++) {
-				if (double.TryParse(a.parts[i], out double num1)) {
-					if (double.TryParse(b.parts[i], out double num2)) { //number vs number
+			for (; i < aParts!.Count && i < bParts!.Count && result == 0; i++) {
+				if (double.TryParse(aParts[i], out double num1)) {
+					if (double.TryParse(bParts[i], out double num2)) { //number vs number
 						result = num1.CompareTo(num2);
 					} else {    //number vs string
-						result = a.parts[i].CompareTo(b.parts[i]);
+						result = aParts[i].CompareTo(bParts[i]);
 					}
 				} else {
-					if (double.TryParse(b.parts[i], out double num2)) {     //string vs number
-						result = a.parts[i].CompareTo(b.parts[i]);
+					if (double.TryParse(bParts[i], out double num2)) {     //string vs number
+						result = aParts[i].CompareTo(bParts[i]);
 					} else {    //string vs string
-						result = a.parts[i].CompareTo(b.parts[i]);
+						result = aParts[i].CompareTo(bParts[i]);
 					}
 				}
 			}
 
-			if (result == 0 && i < b.parts!.Count) {    //b still has more, return -1 to indicate it should appear after the first (shorter) item
+			if (result == 0 && i < bParts!.Count) {    //b still has more, return -1 to indicate it should appear after the first (shorter) item
 				result = -1;
 			}
 			return result;
@@ -188,6 +188,9 @@ public sealed class NumberStringComparerOriginal<T> : IComparer<T>
 					if (i < text.Length - 1) {
 						ch = text[i + 1];
 					}
+					else {
+						break;
+					}
 				}
 				if (breakOuter) {
 					break;
@@ -197,7 +200,7 @@ public sealed class NumberStringComparerOriginal<T> : IComparer<T>
 					if (i > 0 && (wasNumber || i == text.Length - 1)) {
 						if (i == text.Length - 1) {
 							if (wasNumber) {
-								parts.Add(text[left..(i + 0 - 1)]);
+								parts.Add(text[left..(i-1)]);
 								extra = text[i];
 							} else {
 								parts.Add(text[left..(i + 1)]);
@@ -212,6 +215,9 @@ public sealed class NumberStringComparerOriginal<T> : IComparer<T>
 					wasNumber = false;
 					if (i < text.Length - 1) {
 						ch = text[i + 1];
+					}
+					else {
+						break;
 					}
 				}
 				if (breakOuter) {

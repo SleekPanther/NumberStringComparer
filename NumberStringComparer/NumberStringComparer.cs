@@ -68,11 +68,16 @@ public sealed class NumberStringComparer<T> : IComparer<T>
 	{
 		public readonly double? number;
 		public readonly string text;
-		public IReadOnlyList<string>? parts;
+		private readonly IReadOnlyList<string>? parts;
 		public NumberString(double? number, string text) {
 			this.number = number;
 			this.text = text;
 			this.parts = null;
+		}
+		public NumberString(double? number, string text, IReadOnlyList<string>? parts) {
+			this.number = number;
+			this.text = text;
+			this.parts = parts;
 		}
 
 		public static NumberString<U> Parse(U anObject, string propertyName) {
@@ -99,13 +104,14 @@ public sealed class NumberStringComparer<T> : IComparer<T>
 				value = ((dynamic)value).Key;
 			}
 
-			if (value.ToString()!.Contains(',')) {	//double.TryParse thinks 1,2 is 12 so we must handle commas ourselves
-				return new NumberString<U>(null, value.ToString()!);
+			string textValue = value.ToString()!;
+			if (textValue.Contains(',')) {	//double.TryParse thinks 1,2 is 12 so we must handle commas ourselves
+				return new NumberString<U>(null, textValue, GetParts(textValue));
 			}
-			if (double.TryParse(value.ToString(), out double num)) {
-				return new NumberString<U>(num, value.ToString()!);
+			if (double.TryParse(textValue, out double num)) {
+				return new NumberString<U>(num, textValue);
 			}
-			return new NumberString<U>(null, value.ToString()!);
+			return new NumberString<U>(null, textValue, GetParts(textValue));
 		}
 		public readonly int CompareTo(NumberString<U> other) {
 			if (number == null || other.number == null) {
@@ -115,35 +121,29 @@ public sealed class NumberStringComparer<T> : IComparer<T>
 		}
 
 		private static int CompareToPartial(NumberString<U> a, NumberString<U> b) {
-			a.parts = GetParts(a.text);
-			b.parts = GetParts(b.text);
+			var aParts = a.parts ?? GetParts(a.text);
+			var bParts = b.parts ?? GetParts(b.text);
 
-			if (Enumerable.SequenceEqual(a.parts!, b.parts!)) {
+			if (Enumerable.SequenceEqual(aParts!, bParts!)) {
 				return 0;
 			}
 
 			int result = 0;
 			int i = 0;
-			for (; i < a.parts!.Count && i < b.parts!.Count && result == 0; i++) {
-				if (double.TryParse(a.parts[i], out double num1)) {
-					if (double.TryParse(b.parts[i], out double num2)) {	//number vs number
-						result = num1.CompareTo(num2);
-					}
-					else {	//number vs string
-						result = a.parts[i].CompareTo(b.parts[i]);
-					}
+			//compare each part until we find a difference or reach the end of the shorter list
+			for (; i < aParts!.Count && i < bParts!.Count && result == 0; i++) {
+				bool aIsNum = double.TryParse(aParts[i], out double num1);
+				bool bIsNum = double.TryParse(bParts[i], out double num2);
+				
+				if (aIsNum && bIsNum) {	//number vs number
+					result = num1.CompareTo(num2);
 				}
-				else {
-					if (double.TryParse(b.parts[i], out double num2)) {		//string vs number
-						result = a.parts[i].CompareTo(b.parts[i]);
-					}
-					else {	//string vs string
-						result = a.parts[i].CompareTo(b.parts[i]);
-					}
+				else {	//number vs string OR string vs number OR string vs string - all use string comparison
+					result = aParts[i].CompareTo(bParts[i]);
 				}
 			}
 
-			if(result == 0 && i < b.parts!.Count) {	//b still has more, return -1 to indicate it should appear after the first (shorter) item
+			if(result == 0 && i < bParts!.Count) {	//b still has more, return -1 to indicate it should appear after the first (shorter) item
 				result = -1;
 			}
 			return result;
@@ -151,80 +151,90 @@ public sealed class NumberStringComparer<T> : IComparer<T>
 
 		public static IReadOnlyList<string>? GetParts(string text) {
 			if (text == null) return null;
-			if (text.Length == 0) return Array.Empty<string>().AsReadOnly();
-			if (text.Length == 1) return new List<string>() { text[0].ToString() }.AsReadOnly();
+			if (text.Length == 0) return Array.Empty<string>();
+			if (text.Length == 1) return new[] { text[0].ToString() };
 			if (text.Contains(',')) {   //must check this before double.TryParse because that ignores commas
 				return text
 					.Split(',', StringSplitOptions.RemoveEmptyEntries)
 					.Select(s => s.Trim())
 					.Where(s => !string.IsNullOrEmpty(s))
-					.ToList()
-					.AsReadOnly();
+					.ToList();
 			}
-			if (double.TryParse(text, out double _ ) 
-				|| text.All(ch => !char.IsDigit(ch))) return new List<string>() { text };
+				
+			ReadOnlySpan<char> span = text.AsSpan();
+			if (double.TryParse(span, out double _) || text.All(ch => !char.IsDigit(ch))) {
+				return new List<string>() { text };
+			}
 
 			int left = 0;
 			bool wasNumber = false;
 			char extra = default;
 			var parts = new List<string>();
 			bool breakOuter = false;
-			for (int i = 0; i < text.Length; i++) {
-				char ch = text[i];
-				for(; double.TryParse(ch + "", out var digit); i++) {
-					if (i > 0 && (!wasNumber || i == text.Length - 1)) {
-						if (i == text.Length - 1) {
+			for (int i = 0; i < span.Length; i++) {
+				char ch = span[i];
+				//process consecutive digits
+				for(; char.IsDigit(ch); i++) {
+					if (i > 0 && (!wasNumber || i == span.Length - 1)) {
+						if (i == span.Length - 1) {
 							if (!wasNumber) {
-								parts.Add(text[left..i]);
-								extra = text[i];
+								parts.Add(span[left..i].ToString());
+								extra = span[i];
 							}
 							else {
-								parts.Add(text[left..(i+1)]);
+								parts.Add(span[left..(i+1)].ToString());
 							}
 							breakOuter = true;
 							break;
 						}
 						else {
-							parts.Add(text[left..i]);
+							parts.Add(span[left..i].ToString());
 						}
 						left = i;
 					}
 					wasNumber = true;
-					if(i < text.Length -1) {
-						ch = text[i+1];
+					if(i < span.Length -1) {
+						ch = span[i+1];
+					}
+					else {
+						break;
 					}
 				}
 				if (breakOuter) {
 					break;
 				}
 
-				for (; !double.TryParse(ch + "", out var digit); i++) {
-					if (i > 0 && (wasNumber || i == text.Length - 1)) {
-						if (i == text.Length - 1) {
+				//process consecutive non-digits
+				for (; !char.IsDigit(ch); i++) {
+					if (i > 0 && (wasNumber || i == span.Length - 1)) {
+						if (i == span.Length - 1) {
 							if (wasNumber) {
-								parts.Add(text[left..(i +0-1)]);
-								extra = text[i];
+								parts.Add(span[left..(i-1)].ToString());
+								extra = span[i];
 							}
 							else {
-								parts.Add(text[left..(i +1)]);
+								parts.Add(span[left..(i+1)].ToString());
 							}
 							breakOuter = true;
 							break;
 						}
 						else {
-							parts.Add(text[left..i]);
+							parts.Add(span[left..i].ToString());
 						}
 						left = i;
 					}
 					wasNumber = false;
-					if(i < text.Length -1) {
-						ch = text[i+1];
+					if(i < span.Length -1) {
+						ch = span[i+1];
+					}
+					else {
+						break;
 					}
 				}
 				if (breakOuter) {
 					break;
 				}
-				if (i > 0 && i < text.Length) {
+				if (i > 0 && i < span.Length) {
 					i--;	//go back 1 character so the other loop can start from where the last one failed to parse
 				}
 			}
