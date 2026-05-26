@@ -12,7 +12,7 @@ BenchmarkRunner.Run<NumberStringComparerBenchmarks>();
 [MemoryDiagnoser]
 //[Orderer(SummaryOrderPolicy.FastestToSlowest)]
 //[RankColumn]
-[MaxIterationCount(16)]
+[MaxIterationCount(50)]
 [Config(typeof(Config))]
 public class NumberStringComparerBenchmarks
 {
