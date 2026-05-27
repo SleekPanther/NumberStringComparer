@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Linq.Expressions;
 
 namespace NumberStringComparer;
 /// <summary>
@@ -12,6 +13,7 @@ public sealed class NumberStringComparer<T> : IComparer<T>
 {
 	public static readonly HashSet<Type> allowedPropertyTypes = [typeof(string), typeof(int), typeof(double), typeof(float), typeof(decimal), typeof(long), typeof(short),];
 	private readonly string? propertyName = null;	//optional, used for Object comparison
+	private static readonly Func<T, object>? keyExtractor = InitializeKeyExtractor();
 	private NumberStringComparer() { }
 	private NumberStringComparer(string propertyName) {
 		this.propertyName = propertyName;
@@ -52,10 +54,21 @@ public sealed class NumberStringComparer<T> : IComparer<T>
 		return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(KeyValuePair<,>);
 	}
 
+	private static Func<T, object>? InitializeKeyExtractor() {
+		Type type = typeof(T);
+		if (!IsKeyValuePair(type)) return null;
+		
+		var keyProperty = type.GetProperty("Key")!;
+		var parameter = Expression.Parameter(type, "kvp");
+		var keyAccess = Expression.Property(parameter, keyProperty);
+		var boxed = Expression.Convert(keyAccess, typeof(object));
+		return Expression.Lambda<Func<T, object>>(boxed, parameter).Compile();
+	}
+
 	public int Compare(T? x, T? y) {
 		Type type = typeof(T);
 		if(IsKeyValuePair(type)) {
-			return NumberString<T>.Parse(((dynamic)x!).Key).CompareTo(NumberString<T>.Parse(((dynamic)y!).Key));
+			return NumberString<T>.Parse(keyExtractor!(x!)).CompareTo(NumberString<T>.Parse(keyExtractor!(y!)));
 		}
 		if (IsComplexType(type)) {
 			if (string.IsNullOrWhiteSpace(propertyName)) throw new InvalidOperationException($"{propertyName} is empty and must be specified for object comparison on complex types. Type = {type}");
@@ -99,9 +112,6 @@ public sealed class NumberStringComparer<T> : IComparer<T>
 			Type type = value.GetType();
 			if (IsComplexType(type)) {
 				throw new InvalidOperationException($"Cannot call this version of {nameof(Parse)} with complex object (Type = {type.Name}). Use the other version passing and object instance and propertyName");
-			}
-			if (IsKeyValuePair(type)) {			//normally CompareTo just sends the key from KVP but just in case, we handle it just in case
-				value = ((dynamic)value).Key;
 			}
 
 			string textValue = value.ToString()!;

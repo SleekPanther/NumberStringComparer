@@ -21,7 +21,7 @@ public class NumberStringComparerBenchmarks
 	private List<string> _pureNumbers = null!;
 	private List<string> _alphanumeric = null!;
 	private List<string> _commaSeparated = null!;
-	private List<KeyValuePair<string, string>> _dictionary = null!;
+	private List<KeyValuePair<string, string>> _keyValuePairs = null!;
 
 	[GlobalSetup]
 	public void Setup()
@@ -83,13 +83,13 @@ public class NumberStringComparerBenchmarks
 		}
 		Shuffle(_commaSeparated, rng);
 
-		// Dictionary scenario (from tests)
-		_dictionary = new List<KeyValuePair<string, string>>();
-		foreach (var item in _mixedShort)
+		// Dictionary/KeyValuePair scenario (from tests)
+		_keyValuePairs = new List<KeyValuePair<string, string>>();
+		foreach (var item in _mixedLong)
 		{
-			_dictionary.Add(new KeyValuePair<string, string>(item, item));
+			_keyValuePairs.Add(new KeyValuePair<string, string>(item, item));
 		}
-		Shuffle(_dictionary, rng);
+		Shuffle(_keyValuePairs, rng);
 	}
 
 	// Shuffle in place using Fisher-Yates algorithm
@@ -145,17 +145,16 @@ public class NumberStringComparerBenchmarks
 	//	list.Sort(NumberStringComparer<string>.GetComparer());
 	//}
 
-	//// Dictionary/KeyValuePair scenario
-	//[Benchmark]
-	//public void Dictionary_Original() {
-	//	var list = new List<KeyValuePair<string, string>>(_dictionary);
-	//	list.Sort(NumberStringComparerOriginal<KeyValuePair<string, string>>.GetComparer());
-	//}
-	//[Benchmark]
-	//public void Dictionary_Current() {
-	//	var list = new List<KeyValuePair<string, string>>(_dictionary);
-	//	list.Sort(NumberStringComparer<KeyValuePair<string, string>>.GetComparer());
-	//}
+	[Benchmark]
+	public void KeyValuePairs_Original() {
+		var list = new List<KeyValuePair<string, string>>(_keyValuePairs);
+		list.Sort(NumberStringComparerOriginal<KeyValuePair<string, string>>.GetComparer());
+	}
+	[Benchmark]
+	public void KeyValuePairs_Current() {
+		var list = new List<KeyValuePair<string, string>>(_keyValuePairs);
+		list.Sort(NumberStringComparer<KeyValuePair<string, string>>.GetComparer());
+	}
 
 
 	// Mixed long list (11,000+ items) - realistic large dataset
