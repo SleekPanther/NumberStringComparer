@@ -124,10 +124,6 @@ public sealed class NumberStringComparer<T> : IComparer<T>
 			var aParts = a.parts ?? GetParts(a.text);
 			var bParts = b.parts ?? GetParts(b.text);
 
-			if (aParts == null || bParts == null) {
-				throw new InvalidOperationException($"GetParts returned null. a.text='{a.text}', b.text='{b.text}'");
-			}
-
 			if (Enumerable.SequenceEqual(aParts!, bParts!)) {
 				return 0;
 			}

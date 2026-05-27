@@ -26,6 +26,8 @@ public class NumberStringComparerBenchmarks
 	[GlobalSetup]
 	public void Setup()
 	{
+		var rng = new Random(42); // Fixed seed for deterministic reproducibility
+
 		// From test: mixed numbers and strings (21 items)
 		_mixedShort = new List<string> {
 			"a", "x", "yy", "yya", "yyz", "yyb",
@@ -35,7 +37,7 @@ public class NumberStringComparerBenchmarks
 
 		// Larger realistic dataset (10,000+ items with longer strings)
 		_mixedLong = new List<string>();
-		for (int i = 0; i < 2000; i++)
+		for (int i = 0; i < 20000; i++)
 		{
 			_mixedLong.Add(i.ToString());
 			_mixedLong.Add((i * 10).ToString());
@@ -46,8 +48,10 @@ public class NumberStringComparerBenchmarks
 		// Add random strings with longer length
 		for (int i = 0; i < 1000; i++)
 		{
-			_mixedLong.Add(GenerateRandomString(Random.Shared, 20, 50));
+			_mixedLong.Add(GenerateRandomString(rng, 20, 50));
 		}
+		Shuffle(_mixedShort, rng);
+		Shuffle(_mixedLong, rng);
 
 		// Pure numeric strings (5,000 items)
 		_pureNumbers = new List<string>();
@@ -56,35 +60,45 @@ public class NumberStringComparerBenchmarks
 			_pureNumbers.Add(i.ToString());
 			_pureNumbers.Add((i * 100).ToString());
 		}
+		Shuffle(_pureNumbers, rng);
 
 		// Complex alphanumeric (8,000 items with longer strings)
 		_alphanumeric = new List<string>();
-		for (int i = 0; i < 2000; i++)
+		for (int i = 0; i < 20000; i++)
 		{
 			_alphanumeric.Add($"{i}AA");
 			_alphanumeric.Add($"{i}AAa");
 			_alphanumeric.Add($"{i}AAa{i * 10}BBB{i * 20}CCC");
 			_alphanumeric.Add($"AA{i}BB{i * 2}CC{i * 3}");
 		}
+		Shuffle(_alphanumeric, rng);
 
 		// Comma-separated (6,000 items with longer sequences)
 		_commaSeparated = new List<string>();
-		for (int i = 0; i < 2000; i++)
+		for (int i = 0; i < 20000; i++)
 		{
 			_commaSeparated.Add($"{i},{i + 1}");
 			_commaSeparated.Add($"{i},{i + 1},{i + 2},{i + 3},{i + 4}");
 			_commaSeparated.Add($"{i}, a, b, c, d, e, f");
 		}
-		//todo adding this also breaks things with the exception seen for mixedLong
-		// Shuffle to make it unsorted
-		var rng = new Random(42); // Fixed seed for reproducibility
-		_commaSeparated = _commaSeparated.OrderBy(x => rng.Next()).ToList();
+		Shuffle(_commaSeparated, rng);
 
 		// Dictionary scenario (from tests)
 		_dictionary = new List<KeyValuePair<string, string>>();
 		foreach (var item in _mixedShort)
 		{
 			_dictionary.Add(new KeyValuePair<string, string>(item, item));
+		}
+		Shuffle(_dictionary, rng);
+	}
+
+	// Shuffle in place using Fisher-Yates algorithm
+	private static void Shuffle<T>(List<T> list, Random rng)
+	{
+		for (int i = list.Count - 1; i > 0; i--)
+		{
+			int j = rng.Next(i + 1);
+			(list[i], list[j]) = (list[j], list[i]);
 		}
 	}
 
@@ -145,8 +159,6 @@ public class NumberStringComparerBenchmarks
 
 
 	// Mixed long list (11,000+ items) - realistic large dataset
-	//TODO This benchmark seems to have exposed an existing bug so can't really optimize.
-	//System.ArgumentException: Unable to sort because the IComparer.Compare() method returns inconsistent results. Either a value does not compare equal to itself, or one value repeatedly compared to another value yields different results.
 	[Benchmark]
 	public void MixedLong_Original() {
 		var list = new List<string>(_mixedLong);
